@@ -1,4 +1,19 @@
 
+
+# emacs temp files
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+
+
+
+
 # Created by https://www.gitignore.io/api/c,java,python,fortran
 
 ### C ###
