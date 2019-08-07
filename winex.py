@@ -9,10 +9,12 @@ from infoline import ParentDirectoryWidget, SessionInfo, ResultWidget
 from prompt import DefaultMode, PromptWidgetHandler
 from presentation import PresentationWidget
 from cmdhistory import CmdHistoryWidget
+from markup import ColorMapper
 
 class TextUserInterface(urwid.Frame):
-    def __init__(self, program_status):
+    def __init__(self, program_status, get_markup):
         self.program_status = program_status
+        self.get_markup = get_markup
         self.cmd_history = CmdHistoryWidget(program_status)
         
         self.parent_directory = ParentDirectoryWidget(program_status)
@@ -24,7 +26,7 @@ class TextUserInterface(urwid.Frame):
             urwid.Divider(),
             self.result])
 
-        self.presentation = PresentationWidget(program_status)
+        self.presentation = PresentationWidget(program_status, get_markup)
         self.session = SessionInfo(program_status=None, cut_position=-1, string="")
         super(TextUserInterface, self).__init__(body=self.presentation,
             header=header, footer=self.session, focus_part="header")
@@ -42,9 +44,8 @@ class TextUserInterface(urwid.Frame):
                 self.footer = self.session
             
         # Focus presentation widget
-        elif key == 'meta w':
+        elif key == 'meta w' and self.presentation.selectable():
             self.set_focus('body')
-            self.body.set_focus_highlight(True)
             
         # Focus command history widget
         elif key == 'meta s':
@@ -93,5 +94,8 @@ if __name__ == '__main__':
             raise urwid.ExitMainLoop()
 
     program_status = ProgramStatus()
-    widget = TextUserInterface(program_status)
-    urwid.MainLoop(widget, palette=palette, unhandled_input=direct_quit).run()
+    color_mapper = ColorMapper()
+    widget = TextUserInterface(program_status, color_mapper.get_markup)
+    mainloop = urwid.MainLoop(widget, palette=palette, unhandled_input=direct_quit)
+    color_mapper.setup(mainloop)
+    mainloop.run()
