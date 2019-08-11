@@ -18,6 +18,7 @@ class PresentationWidget(Walker):
         self.program_status = program_status
         self.get_markup = get_markup
         super(PresentationWidget, self).__init__()
+        self._selectable = False
         self.update()
 
     def update(self, force=False):
@@ -28,8 +29,8 @@ class PresentationWidget(Walker):
         markup_list = list()
         for line in presentation:
             markup_list.append(self.get_markup(line))
-        super(PresentationWidget, self).update(markup_list)
-
+        self.show(markup_list)
+        
     def reset_widget(self):
         if self.focus is None:
             return
