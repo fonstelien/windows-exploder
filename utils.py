@@ -7,7 +7,7 @@ def meta_q(key):
 def showwidget(w, palette=None, filler=True):
     w = urwid.Filler(w, valign="top") if filler else w
     urwid.MainLoop(w, unhandled_input=meta_q, palette=palette).run()    
-    
+
 class Showkeys(urwid.Edit):
     def keypress(self, size, key):
         self.edit_text += f"<{key}> "

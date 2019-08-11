@@ -16,7 +16,7 @@ class TextUserInterface(urwid.Frame):
         self.program_status = program_status
         self.get_markup = get_markup
         self.cmd_history = CmdHistoryWidget(program_status)
-        
+
         self.parent_directory = ParentDirectoryWidget(program_status)
         self.prompt = PromptWidgetHandler(program_status)
         self.result = ResultWidget(program_status)
@@ -30,7 +30,7 @@ class TextUserInterface(urwid.Frame):
         self.session = SessionInfo(program_status=None, cut_position=-1, string="")
         super(TextUserInterface, self).__init__(body=self.presentation,
             header=header, footer=self.session, focus_part="header")
-        
+
     def keypress(self, size, key):
         super(TextUserInterface, self).keypress(size, key)
 
@@ -42,17 +42,17 @@ class TextUserInterface(urwid.Frame):
             if self.footer is self.cmd_history:
                 self.cmd_history.reset_widget()
                 self.footer = self.session
-            
+
         # Focus presentation widget
         elif key == 'meta w' and self.presentation.selectable():
             self.set_focus('body')
-            
+
         # Focus command history widget
         elif key == 'meta s':
             self.footer = self.cmd_history
             self.set_focus('footer')
             self.presentation.reset_widget()
-            
+
         # Focus is on prompt
         if self.focus is self.header:        
             if key == 'enter':
@@ -69,7 +69,7 @@ class TextUserInterface(urwid.Frame):
             elif key in ('up', 'down'):
                 self.footer = self.cmd_history
                 self.set_focus('footer')
-                
+
         # Focus is on cmd_history
         if self.focus is self.footer:
             if key in ('up', 'down', 'esc', 'enter', 'tab', 'backspace') or len(key) == 1:
@@ -84,10 +84,10 @@ class TextUserInterface(urwid.Frame):
             if key in ('esc', 'enter', 'tab'):
                 self.footer = self.session
                 self.set_focus('header')
-            
+
         return key
 
-    
+
 if __name__ == '__main__':
     def direct_quit(key):
         if key == 'meta q':

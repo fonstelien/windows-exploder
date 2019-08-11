@@ -18,7 +18,7 @@ if __name__ == '__main__':
     """Displays each of the palette color schemes. 'meta q' ends the program."""
     import urwid
     import utils
-    
+
     colors = list()
     for p in palette:
         markup = (p[0], "TEST STRING test string "*3)

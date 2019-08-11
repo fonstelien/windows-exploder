@@ -11,7 +11,7 @@ def init_widget():
                            align="center")
     divider = [urwid.Divider()]*5
     return urwid.SimpleListWalker(divider+[banner, signature])
-        
+
 
 class PresentationWidget(Walker):
     def __init__(self, program_status, get_markup=None):
@@ -30,7 +30,7 @@ class PresentationWidget(Walker):
         for line in presentation:
             markup_list.append(self.get_markup(line))
         self.show(markup_list)
-        
+
     def reset_widget(self):
         if self.focus is None:
             return

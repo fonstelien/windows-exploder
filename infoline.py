@@ -13,12 +13,12 @@ class InfoLine(urwid.AttrMap):
         self.full_text_length = 0
         self.update(**kwargs)
         self.render((1000,))
-        
+
     def update(self, **kwargs):
         '''Abstract method which sets the InfoLine text.
         Should set the full_text and full_text_length properties.'''
         pass
-    
+
     def rows(self, size, focus=False):
         return 1
 
@@ -28,11 +28,15 @@ class InfoLine(urwid.AttrMap):
         if self.full_text_length > maxcol:
             if self.separator_string_length >= maxcol:
                 show_string = self.separator_string[:maxcol]
-            elif self.cut_position == -1 or (self.cut_position + self.separator_string_length >= maxcol):
-                show_string = show_string[:maxcol-self.separator_string_length] + self.separator_string
+            elif self.cut_position ==\
+                 -1 or (self.cut_position + self.separator_string_length >= maxcol):
+                show_string = show_string[:maxcol-self.separator_string_length] +\
+                              self.separator_string
             else:
-                cut_right = self.cut_position + self.separator_string_length + self.full_text_length - maxcol
-                show_string = show_string[:self.cut_position] + self.separator_string + show_string[cut_right:]
+                cut_right = self.cut_position + self.separator_string_length +\
+                            self.full_text_length - maxcol
+                show_string = show_string[:self.cut_position] + self.separator_string +\
+                              show_string[cut_right:]
         self.original_widget.set_text(show_string)
         return super(InfoLine, self).render(size)
 
@@ -49,14 +53,14 @@ class SessionInfo(InfoLine):
         self.full_text = f"Session started at ##:##:##"
         self.full_text_length = len(self.full_text)
         self._invalidate()
-        
-        
+
+
 class ResultStatusWidget(InfoLine):
     def update(self, show_string=""):
         self.full_text = "   " + show_string + "   "
         self.full_text_length = len(self.full_text)
 
-        
+
 class ResultStatusWidgetWrapper(urwid.WidgetWrap):
     def __init__(self, program_status):
         self.program_status = program_status
@@ -70,7 +74,7 @@ class ResultStatusWidgetWrapper(urwid.WidgetWrap):
     def update(self):
         self._w = self.status[self.program_status.status]
 
-        
+
 class ResultDescriptionWidget(urwid.AttrMap):
     def __init__(self, program_status):
         self.program_status = program_status
@@ -78,7 +82,7 @@ class ResultDescriptionWidget(urwid.AttrMap):
         super(ResultDescriptionWidget, self).__init__(
             w=urwid.Text(markup=""), attr_map=self.default_attr_map)
         self.update()
-        
+
     def update(self):
         self.original_widget.set_text(self.program_status.description)
         if self.program_status.description == "":
@@ -86,7 +90,7 @@ class ResultDescriptionWidget(urwid.AttrMap):
         else:
             self.set_attr_map(self.default_attr_map)
 
-            
+
 class ResultWidget(urwid.Columns):
     def __init__(self, program_status):
         self.program_status = program_status
@@ -109,5 +113,5 @@ if __name__ == "__main__":
     parent = ParentDirectoryWidget(program_status)
     result = ResultWidget(program_status)
     widget = urwid.Pile([parent, result])
-    
+
     urwid.MainLoop(urwid.Filler(widget, valign="top"), palette=palette).run()

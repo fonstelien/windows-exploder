@@ -6,7 +6,7 @@ class ProgramStatus(object):
                   'failure': "Failure!",
                   'error': "Error!",
                   'prompt': "Select option:"}
-    
+
     def __init__(self, mode_id='def'):
         self.mode_id = mode_id
         self.command = ""
@@ -14,7 +14,7 @@ class ProgramStatus(object):
         self.description = ""
         self.presentation = ""
         self.cwd = os.getcwd()
-        
+
     @property
     def parent(self):
         return os.path.dirname(self.cwd)
@@ -22,7 +22,7 @@ class ProgramStatus(object):
     @property
     def directory(self):
         return os.path.basename(self.cwd)
-        
+
     def set_result(self, mode_id, command, status, description="", presentation="",
                    cwd=os.getcwd()):
         assert status in self.status_map.keys()
