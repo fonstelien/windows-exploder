@@ -3,12 +3,14 @@
 import urwid
 from walker import Walker
 
+
 def init_widget():
     banner = urwid.BigText(markup=("programpresentation", "Windows Exploder"),
                            font=urwid.HalfBlock5x4Font())
     banner = urwid.Padding(w=banner, align="center", width="clip")
-    signature = urwid.Text(markup=("programpresentation", "V.0.1 by Olav Fønstelien"),
-                           align="center")
+    signature = urwid.Text(
+        markup=("programpresentation", "V.0.1 by Olav Fønstelien"),
+        align="center")
     divider = [urwid.Divider()]*5
     return urwid.SimpleListWalker(divider+[banner, signature])
 
@@ -29,7 +31,7 @@ class PresentationWidget(Walker):
         markup_list = list()
         for line in presentation:
             markup_list.append(self.get_markup(line))
-        self.show(markup_list)
+        self.set_content(markup_list)
 
     def reset_widget(self):
         if self.focus is None:
