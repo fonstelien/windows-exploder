@@ -7,15 +7,19 @@ palette = [('directory', 'dark blue, bold', ''),
            ('marker_right', 'standout, bold, underline, blink', ''),
            ('infoline', 'standout', ''),
            ('init', 'dark blue, bold', 'light gray'),
-           ('programpresentation', 'dark blue, bold', ''),           
+           ('programpresentation', 'dark blue, bold', ''),
            ('success', 'black', 'dark green'),
            ('failure', 'black', 'dark red'),
            ('error', 'black', 'dark red'),
-           ('prompt', 'black', 'yellow')]
+           ('prompt', 'black', 'yellow'),
+           ('dropdown_plain', 'white', 'dark green'),
+           ('dropdown_marked', 'dark red, bold', 'dark green'),
+           ('dropdown_walk', 'black', 'light green')]
 
 
 if __name__ == '__main__':
-    """Displays each of the palette color schemes. 'meta q' ends the program."""
+    """Displays each of the palette color schemes.
+    'meta q' ends the program."""
     import urwid
     import utils
 
