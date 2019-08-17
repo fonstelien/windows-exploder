@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 
 import urwid
-import os
 
 from palette import palette
 from programstatus import ProgramStatus
 from infoline import ParentDirectoryWidget, SessionInfo, ResultWidget
-from prompt import DefaultMode, PromptWidgetHandler
+from prompt import PromptWidgetHandler
 from presentation import PresentationWidget
 from cmdhistory import CmdHistoryWidget
 from markup import ColorMapper
+
 
 class TextUserInterface(urwid.Frame):
     def __init__(self, program_status, get_markup):
@@ -27,9 +27,11 @@ class TextUserInterface(urwid.Frame):
             self.result])
 
         self.presentation = PresentationWidget(program_status, get_markup)
-        self.session = SessionInfo(program_status=None, cut_position=-1, string="")
-        super(TextUserInterface, self).__init__(body=self.presentation,
-            header=header, footer=self.session, focus_part="header")
+        self.session = SessionInfo(
+            program_status=None, cut_position=-1, string="")
+        super(TextUserInterface, self).__init__(
+            body=self.presentation, header=header, footer=self.session,
+            focus_part="header")
 
     def keypress(self, size, key):
         super(TextUserInterface, self).keypress(size, key)
@@ -54,7 +56,7 @@ class TextUserInterface(urwid.Frame):
             self.presentation.reset_widget()
 
         # Focus is on prompt
-        if self.focus is self.header:        
+        if self.focus is self.header:
             if key == 'enter':
                 self.cmd_history.add()
                 self.parent_directory.update()
@@ -72,7 +74,8 @@ class TextUserInterface(urwid.Frame):
 
         # Focus is on cmd_history
         if self.focus is self.footer:
-            if key in ('up', 'down', 'esc', 'enter', 'tab', 'backspace') or len(key) == 1:
+            if key in ('up', 'down', 'esc', 'enter', 'tab', 'backspace') or \
+               len(key) == 1:
                 self.parent_directory.update()
                 self.prompt.update(reset=False)
                 self.result.update()
@@ -96,6 +99,7 @@ if __name__ == '__main__':
     program_status = ProgramStatus()
     color_mapper = ColorMapper()
     widget = TextUserInterface(program_status, color_mapper.get_markup)
-    mainloop = urwid.MainLoop(widget, palette=palette, unhandled_input=direct_quit)
+    mainloop = urwid.MainLoop(
+        widget, palette=palette, unhandled_input=direct_quit, pop_ups=True)
     color_mapper.setup(mainloop)
     mainloop.run()
