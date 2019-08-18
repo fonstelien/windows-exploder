@@ -1,5 +1,6 @@
 import os
 
+
 class ProgramStatus(object):
     status_map = {'init': "Initialized",
                   'success': "Success!",
@@ -7,7 +8,7 @@ class ProgramStatus(object):
                   'error': "Error!",
                   'prompt': "Select option:"}
 
-    def __init__(self, mode_id='def'):
+    def __init__(self, mode_id='dir'):
         self.mode_id = mode_id
         self.command = ""
         self.status = 'init'
@@ -23,15 +24,15 @@ class ProgramStatus(object):
     def directory(self):
         return os.path.basename(self.cwd)
 
-    def set_result(self, mode_id, command, status, description="", presentation="",
-                   cwd=os.getcwd()):
+    def set_result(self, mode_id, command, status, description='',
+                   presentation='', cwd=''):
         assert status in self.status_map.keys()
         self.mode_id = mode_id
         self.command = command
         self.status = status
         self.description = description.strip('\n')
         self.presentation = presentation.strip('\n')
-        self.cwd = cwd
+        self.cwd = os.getcwd() if cwd == '' else cwd
 
     def copy_state(self, other):
         if not other:
