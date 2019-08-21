@@ -56,7 +56,7 @@ class TextUserInterface(urwid.Frame):
             self.presentation.reset_widget()
 
         # Focus is on prompt
-        if self.focus is self.header:
+        if self.get_focus() == 'header':
             if key == 'enter':
                 self.cmd_history.add()
                 self.parent_directory.update()
@@ -68,12 +68,15 @@ class TextUserInterface(urwid.Frame):
                 self.prompt.update()
                 self.result.update()
 
-            elif key in ('up', 'down'):
+            elif key == 'down' and self.presentation.selectable():
+                self.set_focus('body')
+
+            elif key == 'up':
                 self.footer = self.cmd_history
                 self.set_focus('footer')
 
         # Focus is on cmd_history
-        if self.focus is self.footer:
+        if self.get_focus() == 'footer':
             if key in ('up', 'down', 'esc', 'enter', 'tab', 'backspace') or \
                len(key) == 1:
                 self.parent_directory.update()

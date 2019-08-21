@@ -79,32 +79,58 @@ class Walker(urwid.ListBox):
     def __init__(self, markup_list=list(), checkbox=False,
                  focus_attr='infoline'):
         super(Walker, self).__init__(body=_Lines(focus_attr))
-        # Keep original _Lines object when filter contents
-        self.original_body = self.body
+        self.original_body = self.body  # Used when calling filter_content()
         self.set_content(markup_list, checkbox)
 
     def set_content(self, markup_list, checkbox=False):
+        self.body = self.original_body
         self.body.set_content(markup_list, checkbox)
         self._selectable = True if len(self.body) > 0 else False
 
     def filter_content(self, search_pattern, attr_marked='', attr_plain=''):
-        if search_pattern == "":
+        if search_pattern == '':
             self.body = self.original_body
             return
 
         # Replace body with a new _Lines object containing the filtered list
         filtered_list = list()
-        for line in self.original_body:
-            match = re.match(f'(.*)({search_pattern})(.*)', line.get_string())
-            if match:
-                left_str, match_str, right_str = match.groups()
-                markup = [(attr_plain, left_str)]
-                markup += [(attr_marked, match_str)]
-                markup += [(attr_plain, right_str)]
-                filtered_list.append(markup)
+        try:
+            pattern = re.compile(rf'(.*?)({search_pattern})(.*)',
+                                 flags=re.IGNORECASE | re.UNICODE)
+            for line in self.original_body:
+                match = pattern.match(line.get_string())
+                if match:
+                    if not attr_marked:
+                        filtered_list.append(match.group(0))
+                        continue
 
-        self.body = _Lines(self.body.focus_attr)
-        self.set_content(filtered_list, self.body.checkbox)
+                    left_str, match_str, right_str = match.groups()
+                    markup = [(attr_plain, left_str)]
+                    markup += [(attr_marked, match_str)]
+                    markup += [(attr_plain, right_str)]
+                    filtered_list.append(markup)
+
+            self.body = _Lines(self.body.focus_attr)
+            self.set_content(filtered_list, self.body.checkbox)
+            return
+
+        except re.error:
+            pass
+        except ValueError:
+            pass
+        self.body = self.original_body
+
+    def has_match(self, search_str):
+        try:
+            pattern = re.compile(rf'(.*?)({search_str})(.*)',
+                                 flags=re.IGNORECASE | re.UNICODE)
+            for line in self.original_body:
+                if pattern.search(line.get_string()):
+                    return True
+        except re.error:
+            pass
+
+        return False
 
     def set_focus_attr(self, attr):
         self.body.focus_attr = attr

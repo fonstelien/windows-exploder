@@ -10,9 +10,9 @@ class _Editor(urwid.Edit):
     _word_chars = 'A-Za-z0-9'
     _non_word_chars = f'^{_word_chars}'
     _fwd_pattern = re.compile(
-        f'[{_non_word_chars}]*[{_word_chars}]+', flags=32)
+        rf'[{_non_word_chars}]*[{_word_chars}]+', flags=re.UNICODE)
     _rev_pattern = re.compile(
-        f'[{_word_chars}]+[{_non_word_chars}]*\Z', flags=32)
+        rf'[{_word_chars}]+[{_non_word_chars}]*\Z', flags=re.UNICODE)
 
     def __init__(self, *args, **kwargs):
         super(_Editor, self).__init__(*args, **kwargs)
@@ -20,10 +20,10 @@ class _Editor(urwid.Edit):
         self.__edit_text_markup = list()
         self.__edit_text = ""
 
-    def __getattr__(self, name):
-        return super(_Editor, self).__getattribute__(name)
+    # def __getattr__(self, name):
+    #     return super(_Editor, self).__getattribute__(name)
 
-    def __fast_reverse(self):
+    def start_of_word_pos(self):
         string = self.edit_text[:self.edit_pos]
         match = self._rev_pattern.search(string)
         if match:
@@ -31,7 +31,7 @@ class _Editor(urwid.Edit):
         else:
             return 0
 
-    def __fast_forward(self):
+    def end_of_word_pos(self):
         match = self._fwd_pattern.search(self.edit_text, self.edit_pos)
         if match:
             return match.end()
@@ -39,40 +39,41 @@ class _Editor(urwid.Edit):
             return len(self.edit_text)
 
     def keypress(self, size, key):
+        """Support for most Emacs key bindings."""
         super(_Editor, self).keypress(size, key)
 
-        # Walk
-        if key == 'ctrl a':
+        # Walk the line
+        if key == 'ctrl a':  # Move to beginning of line
             self.edit_pos = 0
-        elif key == 'ctrl e':
+        elif key == 'ctrl e':  # Move to end of line
             self.edit_pos = len(self.edit_text)
-        elif key == 'ctrl b':
+        elif key == 'ctrl b':  # Move to previous character
             self.edit_pos -= 1
-        elif key == 'ctrl f':
+        elif key == 'ctrl f':  # Move to next character
             self.edit_pos += 1
-        elif key == 'meta b':
-            self.edit_pos = self.__fast_reverse()
-        elif key == 'meta f':
-            self.edit_pos = self.__fast_forward()
+        elif key == 'meta b':  # Move to beginning of word
+            self.edit_pos = self.start_of_word_pos()
+        elif key == 'meta f':  # Move to end of word
+            self.edit_pos = self.end_of_word_pos()
 
         # Deletions
-        elif key == 'ctrl d':
+        elif key == 'ctrl d':  # Delete next character
             pos = self.edit_pos
             self.edit_text = self.edit_text[:pos] + self.edit_text[pos+1:]
-        elif key == 'meta backspace':
+        elif key == 'meta backspace':  # Delete previous word
             cut_right = self.edit_pos
-            cut_left = self.__fast_reverse()
+            cut_left = self.start_of_word_pos()
             self.edit_text =\
                 self.edit_text[:cut_left] + self.edit_text[cut_right:]
             self.edit_pos = cut_left
-        elif key == 'meta d':
+        elif key == 'meta d':  # Delete next word
             cut_left = self.edit_pos
-            cut_right = self.__fast_forward()
+            cut_right = self.end_of_word_pos()
             self.edit_text =\
                 self.edit_text[:cut_left] + self.edit_text[cut_right:]
-        elif key == 'ctrl k':
+        elif key == 'ctrl k':  # Delete line to right
             self.edit_text = self.edit_text[:self.edit_pos]
-        elif key == 'ctrl u':
+        elif key == 'ctrl u':  # Delete line to left
             self.edit_text = self.edit_text[self.edit_pos:]
             self.edit_pos = 0
 
@@ -176,10 +177,13 @@ class Editor(urwid.Columns):
         super(Editor, self).__init__([self._editor, (0, self._marker_editor)])
 
     def __getattr__(self, name):
-        if name in _Editor.__dict__.keys() or\
-           name in urwid.Edit.__dict__.keys():
-            return self._editor.__getattr__(name)
-        return super(Editor, self).__getattr__(name)
+        return self._editor.__getattribute__(name)
+
+    # def __getattr__(self, name):
+    #     if name in _Editor.__dict__.keys() or\
+    #        name in urwid.Edit.__dict__.keys():
+    #         return self._editor.__getattr__(name)
+    #     return super(Editor, self).__getattr__(name)
 
     def __setattr__(self, name, value):
         if name in _Editor.__dict__.keys() or\

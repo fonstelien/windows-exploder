@@ -30,9 +30,10 @@ class DropDown(urwid.Frame):
     def set_edit_text(self, edit_text):
         self.editor.edit_text = edit_text
         self.editor.edit_pos = len(edit_text)
-        self.walker.filter_content(self.editor.edit_text,
-                                   attr_marked='dropdown_marked',
-                                   attr_plain='dropdown_plain')
+        if edit_text != '':
+            self.walker.filter_content(edit_text,
+                                       attr_marked='dropdown_marked',
+                                       attr_plain='dropdown_plain')
 
     def has_match(self, search_str):
         if search_str == '':
@@ -60,7 +61,7 @@ class DropDown(urwid.Frame):
                 return key
 
             self._emit('render')
-            return key
+            return None  # Do not return the key
 
         # Actions to complete after sending key to underlaying widget
         super(DropDown, self).keypress(size, key)
@@ -70,12 +71,13 @@ class DropDown(urwid.Frame):
 
         # Signal 'close' and return selection to calling widget
         elif key in ('enter', 'tab'):
-            # Set focus to body in order to select the first entry when an
-            # active selection has not been made
-            self.set_focus('body')
-
+            self.set_focus('body')  # Return first if no selection
             self.selection = self.walker.get_selected_message()
             self.set_focus('header')
             self._emit('close')
 
-        return key
+        elif key == 'esc':
+            self.selection = self.editor.edit_text
+            self._emit('close')
+
+        return None  # Do not return the key
