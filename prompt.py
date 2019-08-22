@@ -11,6 +11,7 @@ import dropdown
 
 class PromptEditor(editor.Editor):
     mode_id = '---'
+    eval_pattern = re.compile(r'(?:\s*)(\w+)(?:\s*)(.*)', flags=re.UNICODE)
 
     def __init__(self, program_status):
         self.program_status = program_status
@@ -32,25 +33,6 @@ class PromptEditor(editor.Editor):
         self.set_edit_text("")
         self.change_mode = ''
 
-    def change_directory(self, path):
-        if path == '':
-            new_directory = os.path.expanduser('~')
-        else:
-            new_directory = path
-        try:
-            os.chdir(new_directory)
-            self.program_status.set_result(
-                self.mode_id, self.edit_text, 'success',
-                presentation=self.get_standard_presentation())
-        except FileNotFoundError:
-            self.program_status.set_result(
-                self.mode_id, self.edit_text, 'failure',
-                description=f"No such file or directory: '{new_directory}'")
-        except NotADirectoryError:
-            self.program_status.set_result(
-                self.mode_id, self.edit_text, 'failure',
-                description=f"Not a directory: '{new_directory}'")
-
     def get_standard_presentation(self):
         subproc = subprocess.run(
             "ls -lp | grep -v /$ ; tree -L 2 -dD",
@@ -58,20 +40,25 @@ class PromptEditor(editor.Editor):
         return subproc.stdout
 
     def _evaluate(self):
-        args = self.edit_text.split()
+        match = self.eval_pattern.match(self.edit_text)
 
         # List cwd contents
-        if not args:
+        if not match:
+            if self.edit_text != '':  # _evaluate() in sub class
+                return False
+
             self.program_status.set_result(
                 self.mode_id, self.edit_text, 'success',
                 presentation=self.get_standard_presentation())
             return True
 
+        op, args = match.groups()
+
         # Change mode
-        if args[0] == 'mode':
-            if len(args) > 1:
+        if op == 'mode':
+            if args:
                 # Rest is handled by PromptWidgetHandler
-                self.change_mode = args[1]
+                self.change_mode = args
             else:
                 self.program_status.set_result(
                     self.mode_id, self.edit_text, 'failure',
@@ -79,33 +66,89 @@ class PromptEditor(editor.Editor):
             return True
 
         # Change directory
-        if args[0] == 'cd':
-            path = ' '.join(args[1:])
-            if path == '':
-                path = os.path.expanduser('~')
-            self.change_directory(path)
+        if op == 'cd':
+            self.change_directory(args)
             return True
 
         # Run bash command
-        if args[0] == 'sh':
-            cmd = ' '.join(args[1:])
-            subproc = subprocess.run(
-                cmd, shell=True, capture_output=True,
-                encoding='UTF-8')
-            if subproc.returncode == 0:
-                self.program_status.set_result(
-                    self.mode_id, self.edit_text, 'success',
-                    presentation=subproc.stdout)
-            else:
-                self.program_status.set_result(
-                    self.mode_id, self.edit_text, 'failure',
-                    description=subproc.stderr)
-            return True
+        if op == 'sh':
+            self.run_bash_command(args)
             # except Exception as e:
             #     self.program_status.set_result(
             #         self.mode_id, self.edit_text, 'error',
             #         description=f"Exception raised: {e}")
+
+        # Open file
+        if op == 'clk':
+            self.open_file(args)
+            return True
+
+        # Start application
+        if op == 'app':
+            self.start_application(args)
+            return True
+
         return False
+
+    def run_bash_command(self, cmd):
+        subproc = subprocess.run(
+            cmd, shell=True, capture_output=True, encoding='UTF-8')
+        if subproc.returncode == 0:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'success',
+                presentation=subproc.stdout)
+        else:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure',
+                description=subproc.stderr)
+
+    def open_file(self, filename):
+        """Open file 'filename' in default application"""
+        args = ['xdg-open', filename]
+        pipe = subprocess.PIPE
+        subproc = subprocess.Popen(
+            args, encoding='UTF-8', stdout=pipe, stderr=pipe)
+
+        try:
+            outs, errs = subproc.communicate(timeout=1)
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure', description=errs)
+
+        except subprocess.TimeoutExpired:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'success')
+
+    def start_application(self, app_name):
+        """Starts the program 'app_name'"""
+        pipe = subprocess.PIPE
+        subproc = subprocess.Popen(
+            app_name, encoding='UTF-8', stdout=pipe, stderr=pipe)
+
+        try:
+            outs, errs = subproc.communicate(timeout=1)
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure', description=errs)
+
+        except subprocess.TimeoutExpired:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'success')
+
+    def change_directory(self, path):
+        if path == '':
+            path = os.path.expanduser('~')
+        try:
+            os.chdir(path)
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'success',
+                presentation=self.get_standard_presentation())
+        except FileNotFoundError:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure',
+                description=f"No such file or directory: '{path}'")
+        except NotADirectoryError:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure',
+                description=f"Not a directory: '{path}'")
 
 
 class DefaultMode(PromptEditor):
@@ -121,17 +164,34 @@ class DefaultMode(PromptEditor):
     def _evaluate(self):
         if super(DefaultMode, self)._evaluate():
             return True
-        self.change_directory(self.edit_text)
+        path = self.edit_text
+        if os.path.isfile(path):
+            self.open_file(path)
+        else:
+            self.change_directory(path)
         return True
 
 
-class AltMode(PromptEditor):
-    mode_id = 'alt'
+class BashMode(PromptEditor):
+    mode_id = 'bsh'
+
+    def keypress(self, size, key):
+        super(BashMode, self).keypress(size, key)
+        if key == 'enter':
+            self._evaluate()
+
+        return key
+
+    def _evaluate(self):
+        if super(BashMode, self)._evaluate():
+            return True
+        self.run_bash_command(self.edit_text)
+        return True
 
 
 class PromptWidgetHandler(urwid.PopUpLauncher):
     modes = {DefaultMode.mode_id: DefaultMode,
-             AltMode.mode_id: AltMode}
+             BashMode.mode_id: BashMode}
 
     def __init__(self, program_status):
         self.pop_up = dropdown.DropDown()
@@ -203,8 +263,15 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
             self.original_widget = self.editors[DefaultMode.mode_id]
             return key
 
-        # Open auto_complete pop up
         editor = self.original_widget
+
+        # Auto complete the '.' and '..' for current and parent directories
+        if re.match(r'(.*\s)?\.{1,2}\Z', editor.edit_text[:editor.edit_pos]):
+            if key == 'tab':
+                self.original_widget.insert_text('/')
+            return key
+
+        # Open auto_complete pop up
         if (len(key) == 1 or key in editor._deleters) and \
            (editor.edit_pos - editor.start_of_word_pos()) > 1:
             self.open_pop_up(force=False)
@@ -213,44 +280,16 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
 
         return key
 
-    def set_pop_up_content(self):
-        """Set auto complete content"""
-
-        def list_directory_contents(path):
-            if not os.path.isdir(path):
-                return list()
-            _, dirs, files = next(os.walk(path))
-            dirs = [d+'/' for d in dirs]
-            return dirs + files
-
-        editor = self.original_widget
-        keyword = editor.edit_text
-        if keyword != '':
-            keyword = keyword[:editor.edit_pos]
-        content_list = list()
-
-        if re.match('(mode ).*', keyword):
-            content_list = self.modes.keys()
-
-        # DefaultMode active
-        elif editor.mode_id == DefaultMode.mode_id:
-            path = os.path.join(os.getcwd(), keyword)
-            dirname, basename = os.path.split(path)
-            content_list = list_directory_contents(dirname)
-
-        self.pop_up.set_content(content_list)
-        self.overlay_width = self.pop_up.max_width
-
     def open_pop_up(self, force=False):
         self.set_pop_up_content()
         if not self.pop_up.selectable():
             return
 
         edit_text = self.original_widget.edit_text
-        left_pos = edit_pos = self.original_widget.edit_pos
-        if not force:
-            left_pos = self.original_widget.start_of_word_pos()
-        search_str = edit_text[left_pos:edit_pos]
+        edit_pos = self.original_widget.edit_pos
+        search_str = re.match(r'(?:.*\W)?(\w*\Z)',
+                              edit_text[:edit_pos]).group(1)
+        left_pos = edit_pos - len(search_str)
 
         # # Do not open pop_up if search_str has no match
         if not (force or self.pop_up.has_match(search_str)):
@@ -292,3 +331,31 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
     def render(self, size, focus=False):
         self.max_size = size
         return super(PromptWidgetHandler, self).render(size, focus)
+
+    def set_pop_up_content(self):
+        """Set auto complete content"""
+
+        def list_directory_contents(path):
+            if not os.path.isdir(path):
+                return list()
+            _, dirs, files = next(os.walk(path))
+            dirs = [d+'/' for d in dirs]
+            return dirs + files
+
+        editor = self.original_widget
+        keyword = editor.edit_text
+        if keyword != '':
+            keyword = keyword[:editor.edit_pos]
+        content_list = list()
+
+        if re.match('(mode ).*', keyword):
+            content_list = self.modes.keys()
+
+        # DefaultMode active
+        elif editor.mode_id == DefaultMode.mode_id:
+            path = os.path.join(os.getcwd(), keyword)
+            dirname, basename = os.path.split(path)
+            content_list = list_directory_contents(dirname)
+
+        self.pop_up.set_content(content_list)
+        self.overlay_width = self.pop_up.max_width
