@@ -111,7 +111,7 @@ class Walker(urwid.ListBox):
                     filtered_list.append(markup)
 
             self.body = _Lines(self.body.focus_attr)
-            self.set_content(filtered_list, self.body.checkbox)
+            self.body.set_content(filtered_list, self.original_body.checkbox)
             return
 
         except re.error:
