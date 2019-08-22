@@ -12,7 +12,7 @@ palette = [('directory', 'dark blue, bold', ''),
            ('failure', 'black', 'dark red'),
            ('error', 'black', 'dark red'),
            ('prompt', 'black', 'yellow'),
-           ('dropdown_editor', '', 'dark gray'),
+           ('dropdown_editor', 'white', 'dark gray'),
            ('dropdown_plain', 'white', 'dark green'),
            ('dropdown_marked', 'dark red, bold', 'dark green'),
            ('dropdown_walk', 'black', 'light green')]
