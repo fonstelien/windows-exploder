@@ -11,7 +11,8 @@ import dropdown
 
 class PromptEditor(editor.Editor):
     mode_id = '---'
-    eval_pattern = re.compile(r'(?:\s*)(\w+)(?:\s*)(.*)', flags=re.UNICODE)
+    eval_pattern = re.compile(
+        r'(?:\s*)(:|\w+)(?:\s*)(.*)', flags=re.UNICODE)
 
     def __init__(self, program_status):
         self.program_status = program_status
@@ -35,7 +36,7 @@ class PromptEditor(editor.Editor):
 
     def get_standard_presentation(self):
         subproc = subprocess.run(
-            "ls -lp | grep -v /$ ; tree -L 2 -dD",
+            'ls -AhlgF --group-directories-first --color=always',
             shell=True, capture_output=True, encoding='UTF-8')
         return subproc.stdout
 
@@ -55,7 +56,7 @@ class PromptEditor(editor.Editor):
         op, args = match.groups()
 
         # Change mode
-        if op == 'mode':
+        if op in ('mode', ':'):
             if args:
                 # Rest is handled by PromptWidgetHandler
                 self.change_mode = args
@@ -92,11 +93,13 @@ class PromptEditor(editor.Editor):
             if not match:
                 return None
             if 'll' in match.groups():
-                return 'ls -alF'
+                return 'ls -AhlgF --group-directories-first'
             if 'la' in match.groups():
-                return 'ls -Ap'
+                return 'ls -Agp --group-directories-first'
             if 'l' in match.groups():
-                return 'ls -Fp'
+                return 'ls -Fgp --group-directories-first'
+            if 't' in match.groups():
+                return 'tree --dirsfirst -FaL 2'
             if 'g' in match.groups():
                 return 'grep'
             if 'kll' in match.groups():
@@ -115,7 +118,8 @@ class PromptEditor(editor.Editor):
             return None
 
         alias_patterns = [
-            r'l[la]+',  # ls
+            r'l[la]?',  # ls
+            r't',       # tree
             r'g',       # grep
             r'kll',     # pkill
         ]
@@ -163,17 +167,18 @@ class PromptEditor(editor.Editor):
     def start_application(self, app_name):
         """Starts the program 'app_name'"""
         pipe = subprocess.PIPE
-        subproc = subprocess.Popen(
-            app_name, encoding='UTF-8', stdout=pipe, stderr=pipe)
-
         try:
-            outs, errs = subproc.communicate(timeout=1)
+            subproc = subprocess.Popen(
+                app_name, encoding='UTF-8', stdout=pipe, stderr=pipe)
+            _, err = subproc.communicate(timeout=1)
             self.program_status.set_result(
-                self.mode_id, self.edit_text, 'failure', description=errs)
-
+                self.mode_id, self.edit_text, 'failure', description=err)
         except subprocess.TimeoutExpired:
             self.program_status.set_result(
                 self.mode_id, self.edit_text, 'success')
+        except FileNotFoundError as err:
+            self.program_status.set_result(
+                self.mode_id, self.edit_text, 'failure', description=str(err))
 
     def change_directory(self, path):
         if path == '':
@@ -308,7 +313,9 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         editor = self.original_widget
 
         # Auto complete the '.' and '..' for current and parent directories
-        if re.match(r'(.*\s)?\.{1,2}\Z', editor.edit_text[:editor.edit_pos]):
+        # if re.match(r'(.*\s)?\.{1,2}\Z', editor.edit_text[:editor.edit_pos]):
+        if re.match(r'(.*\s)?(\.{1,2})(/\.{1,2})*\Z',
+                    editor.edit_text[:editor.edit_pos]):
             if key == 'tab':
                 self.original_widget.insert_text('/')
             return key
@@ -318,6 +325,8 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
            (editor.edit_pos - editor.start_of_word_pos()) > 1:
             self.open_pop_up(force=False)
         elif key == 'tab':
+            self.open_pop_up(force=True)
+        elif key == ':' and editor.edit_pos == 1:
             self.open_pop_up(force=True)
 
         return key
@@ -390,7 +399,8 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
             keyword = keyword[:editor.edit_pos]
         content_list = list()
 
-        if re.match('(mode ).*', keyword):
+        if re.match('(mode ).*', keyword) or \
+           re.match('(:)', keyword):
             content_list = self.modes.keys()
 
         # DefaultMode active
