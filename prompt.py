@@ -73,10 +73,7 @@ class PromptEditor(editor.Editor):
         # Run bash command
         if op == 'sh':
             self.run_bash_command(args)
-            # except Exception as e:
-            #     self.program_status.set_result(
-            #         self.mode_id, self.edit_text, 'error',
-            #         description=f"Exception raised: {e}")
+            return True
 
         # Open file
         if op == 'clk':
@@ -91,7 +88,7 @@ class PromptEditor(editor.Editor):
         return False
 
     def run_bash_command(self, cmd):
-        def alias(match):
+        def expand_alias(match):
             if not match:
                 return None
             if 'll' in match.groups():
@@ -104,14 +101,37 @@ class PromptEditor(editor.Editor):
                 return 'grep'
             if 'kll' in match.groups():
                 return 'pkill'
+            return None
 
-        patterns = [r'l[la]+',
-                    r'g',
-                    r'kll']
-        for ptrn in patterns:
+        def add_colors(match):
+            if not match:
+                return None
+            if 'tree' in match.groups():
+                return 'tree -C'
+            if 'ls' in match.groups():
+                return 'ls --color=always'
+            if 'grep' in match.groups():
+                return 'grep --color=always'
+            return None
+
+        alias_patterns = [
+            r'l[la]+',  # ls
+            r'g',       # grep
+            r'kll',     # pkill
+        ]
+
+        for ptrn in alias_patterns:
             cmd = re.sub(
                 fr'((^{ptrn})(?!\S))|((?<=[|&;]\s)(?:\s*)({ptrn})(?!\S))',
-                alias, cmd)
+                expand_alias, cmd)
+
+        color_patterns = [r'tree', r'ls', r'grep']
+
+        for ptrn in color_patterns:
+            without_pipe = fr'((^{ptrn})(?!\S)(?!.*\|))'
+            with_pipe = fr'((?<=[|&;]\s)(?:\s*)({ptrn})(?!\S))'
+            cmd = re.sub(fr'{without_pipe}|{with_pipe}',
+                         add_colors, cmd)
 
         subproc = subprocess.run(
             cmd, shell=True, capture_output=True, encoding='UTF-8')
