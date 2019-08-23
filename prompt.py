@@ -91,6 +91,28 @@ class PromptEditor(editor.Editor):
         return False
 
     def run_bash_command(self, cmd):
+        def alias(match):
+            if not match:
+                return None
+            if 'll' in match.groups():
+                return 'ls -alF'
+            if 'la' in match.groups():
+                return 'ls -Ap'
+            if 'l' in match.groups():
+                return 'ls -Fp'
+            if 'g' in match.groups():
+                return 'grep'
+            if 'kll' in match.groups():
+                return 'pkill'
+
+        patterns = [r'l[la]+',
+                    r'g',
+                    r'kll']
+        for ptrn in patterns:
+            cmd = re.sub(
+                fr'((^{ptrn})(?!\S))|((?<=[|&;]\s)(?:\s*)({ptrn})(?!\S))',
+                alias, cmd)
+
         subproc = subprocess.run(
             cmd, shell=True, capture_output=True, encoding='UTF-8')
         if subproc.returncode == 0:
