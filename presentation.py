@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import urwid
-from walker import Walker
+import walker
 
 
 def init_widget():
@@ -15,19 +15,18 @@ def init_widget():
     return urwid.SimpleListWalker(divider+[banner, signature])
 
 
-class PresentationWidget(Walker):
-    def __init__(self, program_status, get_markup=None):
-        self.program_status = program_status
-        self.get_markup = get_markup
+class PresentationWidget(walker.Walker):
+    def __init__(self, get_markup):
+        self.get_markup = get_markup  # A function object
         super(PresentationWidget, self).__init__()
         self._selectable = False
         self.update()
 
-    def update(self, force=False):
-        presentation = self.program_status.presentation.splitlines()
+    def update(self, presentation="", force=False):
         if not (presentation or force):
             return
 
+        presentation = presentation.splitlines()
         markup_list = list()
         for line in presentation:
             markup_list.append(self.get_markup(line))

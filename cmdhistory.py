@@ -1,28 +1,40 @@
+#!/usr/bin/env python3
+
 import urwid
-import copy
+import resultobject
 
 
-class CmdHistory(object):
-    def __init__(self, program_status):
+class _CmdHistory(object):
+    def __init__(self):
         self.history = list()
         self.length = 0
         self.idx = 0
         self.search_str = ""
-        self.add(program_status)
 
-    def add(self, program_status):
+    def add(self, resultobj):
         for item in self.history:
-            if vars(program_status) == vars(item):
+            if vars(resultobj) == vars(item):
                 self.history.remove(item)
-        self.history.append(copy.copy(program_status))
-        self.length = len(self.history)
-        self.reset()
 
-    def reset(self, search_str=""):
+        new_item = resultobject.ResultObject()
+        new_item.copy_state(resultobj)
+        self.history.append(new_item)
+        self.length = len(self.history)
+        self.idx = self.length - 1
+
+    def set_search_str(self, search_str):
         self.idx = self.length - 1
         self.search_str = search_str
 
-    def next(self, step, _recur_idx=0):
+    def get_last_item(self):
+        if self.length == 0:
+            return None
+        return self.history[-1]
+
+    def get_curr_idx_item(self):
+        return self.history[self.idx]
+
+    def get_next_item(self, step, _recur_idx=0):
         if _recur_idx == self.length:
             return None
 
@@ -30,64 +42,49 @@ class CmdHistory(object):
         item = self.history[self.idx]
         if self.search_str in item.command:
             return item
-        return self.next(step, _recur_idx+1)
-
-    def last(self):
-        return self.history[-1]
+        return self.get_next_item(step, _recur_idx+1)
 
 
 class CmdHistoryWidget(urwid.Edit):
-    def __init__(self, program_status):
-        self.program_status = program_status
-        self.history = CmdHistory(program_status)
+    def __init__(self, resultobj):
+        self.resultobj = resultobj
+        self.history = _CmdHistory()
         super(CmdHistoryWidget, self).__init__(caption="Search history:")
 
-    def add(self):
-        self.history.add(self.program_status)
+    def add(self, resultobj):
+        self.resultobj.copy_state(resultobj)
+        self.history.add(resultobj)
 
     def reset_widget(self):
-        self.edit_text = ""
-        self.history.reset()
+        self.set_edit_text("")
+        self.history.set_search_str("")
 
     def keypress(self, size, key):
         super(CmdHistoryWidget, self).keypress(size, key)
 
         # Typing in search field
         if len(key) == 1 or key == 'backspace':
+            self.history.set_search_str(self.edit_text)
 
             # Show last item if search string is empty
             if self.edit_text == "":
-                self.history.reset(search_str="")
-                self.program_status.copy_state(self.history.last())
+                self.resultobj.copy_state(self.history.get_last_item())
 
-            # Set new search_str and copy state to program_status
-            elif self.edit_text not in self.program_status.command:
-                self.history.reset(search_str=self.edit_text)
-                state = self.history.next(-1)
-                if state is None:
-                    self.program_status.copy_state(self.history.last())
+            # Set new search_str and copy state to resultobj
+            elif self.edit_text not in self.resultobj.command:
+                history_item = self.history.get_next_item(-1)
+                if history_item is None:
+                    self.resultobj.copy_state(self.history.get_last_item())
                 else:
-                    self.program_status.copy_state(self.history.next(-1))
+                    self.resultobj.copy_state(history_item)
 
             return key
 
         elif key == 'up':
-            self.program_status.copy_state(self.history.next(-1))
+            self.resultobj.copy_state(self.history.get_next_item(-1))
 
         elif key == 'down':
-            self.program_status.copy_state(self.history.next(+1))
-
-        elif key == 'esc':
-            self.program_status.copy_state(self.history.last())
-
-        # elif key == 'enter':
-        #     last_state = self.history.last()
-        #     mode_id = last_state.mode_id
-        #     self.program_status.set_result()
-
-        elif key == 'tab':
-            pass
-            # self.program_status.copy_state(self.history.last())
+            self.resultobj.copy_state(self.history.get_next_item(+1))
 
         if key in ('esc', 'enter', 'tab'):
             self.reset_widget()

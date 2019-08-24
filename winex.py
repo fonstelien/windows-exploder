@@ -3,34 +3,44 @@
 import urwid
 
 from palette import palette
-from programstatus import ProgramStatus
-from infoline import ParentDirectoryWidget, SessionInfo, ResultWidget
-from prompt import PromptWidgetHandler
-from presentation import PresentationWidget
-from cmdhistory import CmdHistoryWidget
-from markup import ColorMapper
+import resultobject
+import infoline
+import prompt
+import presentation
+import cmdhistory
+import markup
 
 
 class TextUserInterface(urwid.Frame):
-    def __init__(self, program_status, get_markup):
-        self.program_status = program_status
+    def __init__(self, get_markup):
         self.get_markup = get_markup
-        self.cmd_history = CmdHistoryWidget(program_status)
+        self.resultobj = resultobject.ResultObject()
 
-        self.parent_directory = ParentDirectoryWidget(program_status)
-        self.prompt = PromptWidgetHandler(program_status)
-        self.result = ResultWidget(program_status)
-        header = urwid.Pile([
-            self.parent_directory,
-            self.prompt,
-            urwid.Divider(),
-            self.result])
+        # The 'header' widget
+        self.parent_directory = infoline.ParentDirectoryWidget()
+        self.prompt = prompt.PromptWidgetHandler(self.resultobj)
+        self.result = infoline.ResultWidget(
+            'init', resultobject.ResultObject.status_map)
+        header = urwid.Pile(
+            [self.parent_directory, self.prompt, urwid.Divider(), self.result])
 
-        self.presentation = PresentationWidget(program_status, get_markup)
-        self.session = SessionInfo(
-            program_status=None, cut_position=-1, string="")
+        # The 'body' and 'footer' widgets
+        self.presentation = presentation.PresentationWidget(get_markup)
+        self.session = infoline.SessionInfo(cut_pos=-1, string="")
+
+        # The cmd_history widget
+        self.history_resultobj = resultobject.ResultObject()
+        self.cmd_history = cmdhistory.CmdHistoryWidget(self.history_resultobj)
+        self.cmd_history.add(self.resultobj)
+
+        # Setting initial content
+        self.parent_directory.update(self.resultobj.parent_directory)
+        self.result.update(self.resultobj.status,
+                           self.resultobj.description)
+        self.presentation.update(self.resultobj.presentation)
+
         super(TextUserInterface, self).__init__(
-            body=self.presentation, header=header, footer=self.session,
+            header=header, body=self.presentation, footer=self.session,
             focus_part="header")
 
     def keypress(self, size, key):
@@ -58,15 +68,15 @@ class TextUserInterface(urwid.Frame):
         # Focus is on prompt
         if self.get_focus() == 'header':
             if key == 'enter':
-                self.cmd_history.add()
-                self.parent_directory.update()
-                self.prompt.update()
-                self.result.update()
-                self.presentation.update()
+                self.cmd_history.add(self.resultobj)
+                self.parent_directory.update(self.resultobj.parent_directory)
+                self.prompt.update(self.resultobj.directory, "")
+                self.result.update(self.resultobj.status,
+                                   self.resultobj.description)
+                self.presentation.update(self.resultobj.presentation)
 
             elif key == 'esc':
-                self.prompt.update()
-                self.result.update()
+                self.prompt.update(self.resultobj.directory, "")
 
             elif key == 'down' and self.presentation.selectable():
                 self.set_focus('body')
@@ -77,15 +87,25 @@ class TextUserInterface(urwid.Frame):
 
         # Focus is on cmd_history
         if self.get_focus() == 'footer':
-            if key in ('up', 'down', 'esc', 'enter', 'tab', 'backspace') or \
-               len(key) == 1:
-                self.parent_directory.update()
-                self.prompt.update(reset=False)
-                self.result.update()
-                self.presentation.update(force=True)
+            if key in ('up', 'down', 'enter', 'backspace') or len(key) == 1:
+                self.parent_directory.update(
+                    self.history_resultobj.parent_directory)
+                self.prompt.update(self.history_resultobj.directory,
+                                   self.history_resultobj.command)
+                self.result.update(self.history_resultobj.status,
+                                   self.history_resultobj.description)
+                self.presentation.update(self.history_resultobj.presentation,
+                                         force=True)
 
-            if key == 'esc':
-                self.prompt.update(reset=True)
+            elif key in ('esc', 'tab'):
+                edit_text = ""
+                if key == 'tab':
+                    edit_text = self.history_resultobj.command
+                self.parent_directory.update(self.resultobj.parent_directory)
+                self.prompt.update(self.resultobj.directory, edit_text)
+                self.result.update(self.resultobj.status,
+                                   self.resultobj.description)
+                self.presentation.update(self.resultobj.presentation)
 
             if key in ('esc', 'enter', 'tab'):
                 self.footer = self.session
@@ -99,9 +119,8 @@ if __name__ == '__main__':
         if key == 'meta q':
             raise urwid.ExitMainLoop()
 
-    program_status = ProgramStatus()
-    color_mapper = ColorMapper()
-    widget = TextUserInterface(program_status, color_mapper.get_markup)
+    color_mapper = markup.ColorMapper()
+    widget = TextUserInterface(color_mapper.get_markup)
     mainloop = urwid.MainLoop(
         widget, palette=palette, unhandled_input=direct_quit, pop_ups=True)
     color_mapper.setup(mainloop)

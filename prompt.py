@@ -14,21 +14,21 @@ class PromptEditor(editor.Editor):
     eval_pattern = re.compile(
         r'(?:\s*)(:|\w+)(?:\s*)(.*)', flags=re.UNICODE)
 
-    def __init__(self, program_status):
-        self.program_status = program_status
+    def __init__(self, resultobj, directory, edit_text):
+        self.resultobj = resultobj
         self.change_mode = ''
-        super(PromptEditor, self).__init__(caption=self._get_caption(),
-                                           edit_text=program_status.command)
+        super(PromptEditor, self).__init__(
+            caption=self._get_caption(directory), edit_text=edit_text)
 
-    def _get_caption(self):
-        directory_map = ('directory', self.program_status.directory + "/")
+    def _get_caption(self, directory):
+        directory_map = ('directory', directory + "/")
         mode_map = ('mode', f" ({self.mode_id}) ")
         return [directory_map, mode_map]
 
-    def update(self):
-        self.set_caption(self._get_caption())
-        self.set_edit_text(self.program_status.command)
-        self.set_edit_pos(len(self.edit_text))
+    def update(self, directory, edit_text):
+        self.set_caption(self._get_caption(directory))
+        self.set_edit_text("")
+        self.insert_text(edit_text)
 
     def reset_widget(self):
         self.set_edit_text("")
@@ -48,7 +48,7 @@ class PromptEditor(editor.Editor):
             if self.edit_text != '':  # _evaluate() in sub class
                 return False
 
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success',
                 presentation=self.get_standard_presentation())
             return True
@@ -61,7 +61,7 @@ class PromptEditor(editor.Editor):
                 # Rest is handled by PromptWidgetHandler
                 self.change_mode = args
             else:
-                self.program_status.set_result(
+                self.resultobj.set_result(
                     self.mode_id, self.edit_text, 'failure',
                     description="mode: missing argument")
             return True
@@ -140,11 +140,11 @@ class PromptEditor(editor.Editor):
         subproc = subprocess.run(
             cmd, shell=True, capture_output=True, encoding='UTF-8')
         if subproc.returncode == 0:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success',
                 presentation=subproc.stdout)
         else:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure',
                 description=subproc.stderr)
 
@@ -157,11 +157,11 @@ class PromptEditor(editor.Editor):
 
         try:
             outs, errs = subproc.communicate(timeout=1)
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure', description=errs)
 
         except subprocess.TimeoutExpired:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success')
 
     def start_application(self, app_name):
@@ -171,13 +171,13 @@ class PromptEditor(editor.Editor):
             subproc = subprocess.Popen(
                 app_name, encoding='UTF-8', stdout=pipe, stderr=pipe)
             _, err = subproc.communicate(timeout=1)
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure', description=err)
         except subprocess.TimeoutExpired:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success')
         except FileNotFoundError as err:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure', description=str(err))
 
     def change_directory(self, path):
@@ -185,15 +185,15 @@ class PromptEditor(editor.Editor):
             path = os.path.expanduser('~')
         try:
             os.chdir(path)
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success',
                 presentation=self.get_standard_presentation())
         except FileNotFoundError:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure',
                 description=f"No such file or directory: '{path}'")
         except NotADirectoryError:
-            self.program_status.set_result(
+            self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure',
                 description=f"Not a directory: '{path}'")
 
@@ -240,7 +240,7 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
     modes = {DefaultMode.mode_id: DefaultMode,
              BashMode.mode_id: BashMode}
 
-    def __init__(self, program_status):
+    def __init__(self, resultobj):
         self.pop_up = dropdown.DropDown()
         urwid.connect_signal(
             self.pop_up, 'close', lambda x: self.close_pop_up())
@@ -257,20 +257,20 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         self.overlay_width = 1
         self.max_size = None  # (maxcol,) -- the size parameter to render()
 
-        self.program_status = program_status
+        self.resultobj = resultobj
         self.editors = dict()
         super(PromptWidgetHandler, self).__init__(
-            self._init_mode(program_status.mode_id))
+            self._init_mode(DefaultMode.mode_id))
+        self.resultobj.set_result(self.original_widget.mode_id, "", 'init')
 
     def _init_mode(self, mode_id):
-        editor = self.modes[mode_id](self.program_status)
+        directory = os.path.basename(os.getcwd())
+        editor = self.modes[mode_id](self.resultobj, directory, "")
         self.editors[mode_id] = editor
         return editor
 
-    def update(self, reset=True):
-        self.original_widget.update()
-        if reset:
-            self.reset_widget()
+    def update(self, directory, edit_text):
+        self.original_widget.update(directory, edit_text)
 
     def reset_widget(self):
         self.original_widget.reset_widget()
@@ -287,33 +287,35 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
 
                 # Load previously used mode
                 if next_mode_id in self.editors.keys():
+                    self.original_widget.reset_widget()
                     self.original_widget = self.editors[next_mode_id]
-                    self.program_status.set_result(
+                    self.resultobj.set_result(
                         curr_mode_id, command, 'success')
 
                 # Initialize mode
                 elif next_mode_id in self.modes.keys():
+                    self.original_widget.reset_widget()
                     self.original_widget = self._init_mode(next_mode_id)
-                    self.program_status.set_result(
+                    self.resultobj.set_result(
                         curr_mode_id, command, 'success')
 
                 # Undefined mode
                 else:
-                    self.program_status.set_result(
+                    self.resultobj.set_result(
                         curr_mode_id, command, 'failure',
                         description=f"No such mode '{next_mode_id}'")
-
+            self.original_widget.reset_widget()
             return key
 
         # Enter default mode
         if key == 'esc':
+            self.original_widget.reset_widget()
             self.original_widget = self.editors[DefaultMode.mode_id]
             return key
 
         editor = self.original_widget
 
         # Auto complete the '.' and '..' for current and parent directories
-        # if re.match(r'(.*\s)?\.{1,2}\Z', editor.edit_text[:editor.edit_pos]):
         if re.match(r'(.*\s)?(\.{1,2})(/\.{1,2})*\Z',
                     editor.edit_text[:editor.edit_pos]):
             if key == 'tab':

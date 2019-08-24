@@ -2,13 +2,15 @@
 
 import urwid
 
+
 class InfoLine(urwid.AttrMap):
-    def __init__(self, program_status, cut_position=10, separator_string="...", attr_map="infoline", **kwargs):
-        super(InfoLine, self).__init__(w=urwid.Text(markup=""), attr_map=attr_map)
-        self.program_status = program_status
-        self.cut_position = cut_position
-        self.separator_string = separator_string
-        self.separator_string_length = len(separator_string)
+    def __init__(self, cut_pos=10, separator_str="...",
+                 attr_map="infoline", **kwargs):
+        super(InfoLine, self).__init__(
+            w=urwid.Text(markup=""), attr_map=attr_map)
+        self.cut_pos = cut_pos
+        self.separator_str = separator_str
+        self.separator_str_len = len(separator_str)
         self.full_text = ""
         self.full_text_length = 0
         self.update(**kwargs)
@@ -26,30 +28,30 @@ class InfoLine(urwid.AttrMap):
         (maxcol, ) = size
         show_string = self.full_text
         if self.full_text_length > maxcol:
-            if self.separator_string_length >= maxcol:
-                show_string = self.separator_string[:maxcol]
-            elif self.cut_position ==\
-                 -1 or (self.cut_position + self.separator_string_length >= maxcol):
-                show_string = show_string[:maxcol-self.separator_string_length] +\
-                              self.separator_string
+            if self.separator_str_len >= maxcol:
+                show_string = self.separator_str[:maxcol]
+            elif self.cut_pos == -1 or (self.cut_pos +
+                                        self.separator_str_len >= maxcol):
+                show_string = (show_string[:maxcol-self.separator_str_len] +
+                               self.separator_str)
             else:
-                cut_right = self.cut_position + self.separator_string_length +\
-                            self.full_text_length - maxcol
-                show_string = show_string[:self.cut_position] + self.separator_string +\
-                              show_string[cut_right:]
+                cut_right = (self.cut_pos + self.separator_str_len +
+                             self.full_text_length - maxcol)
+                show_string = (show_string[:self.cut_pos] +
+                               self.separator_str + show_string[cut_right:])
         self.original_widget.set_text(show_string)
         return super(InfoLine, self).render(size)
 
 
-class ParentDirectoryWidget(InfoLine):        
-    def update(self):
-        self.full_text = self.program_status.parent + "/"
+class ParentDirectoryWidget(InfoLine):
+    def update(self, parent_directory=""):
+        self.full_text = parent_directory + "/"
         self.full_text_length = len(self.full_text)
         self._invalidate()
 
 
 class SessionInfo(InfoLine):
-    def update(self, string):
+    def update(self, string=""):
         self.full_text = f"Session started at ##:##:##"
         self.full_text_length = len(self.full_text)
         self._invalidate()
@@ -57,50 +59,49 @@ class SessionInfo(InfoLine):
 
 class ResultStatusWidget(InfoLine):
     def update(self, show_string=""):
-        self.full_text = "   " + show_string + "   "
+        blanks = ' '*3
+        self.full_text = blanks + show_string + blanks
         self.full_text_length = len(self.full_text)
 
 
 class ResultStatusWidgetWrapper(urwid.WidgetWrap):
-    def __init__(self, program_status):
-        self.program_status = program_status
+    def __init__(self, init_status, status_map):
         self.status = dict()
-        for status, string in program_status.status_map.items():
+        for status, string in status_map.items():
             self.status[status] = ResultStatusWidget(
-                program_status=None, cut_position=-1, attr_map=status, show_string=string)
+                cut_pos=-1, attr_map=status, show_string=string)
         super(ResultStatusWidgetWrapper, self).__init__(
-            self.status[self.program_status.status])
+            self.status[init_status])
 
-    def update(self):
-        self._w = self.status[self.program_status.status]
+    def update(self, status):
+        self._w = self.status[status]
 
 
 class ResultDescriptionWidget(urwid.AttrMap):
-    def __init__(self, program_status):
-        self.program_status = program_status
+    def __init__(self):
         self.default_attr_map = {None: "infoline"}
         super(ResultDescriptionWidget, self).__init__(
             w=urwid.Text(markup=""), attr_map=self.default_attr_map)
         self.update()
 
-    def update(self):
-        self.original_widget.set_text(self.program_status.description)
-        if self.program_status.description == "":
+    def update(self, description=""):
+        self.original_widget.set_text(description)
+        if description == "":
             self.set_attr_map({None: ""})
         else:
             self.set_attr_map(self.default_attr_map)
 
 
 class ResultWidget(urwid.Columns):
-    def __init__(self, program_status):
-        self.program_status = program_status
-        self.status = ResultStatusWidgetWrapper(program_status)
-        self.description = ResultDescriptionWidget(program_status)
-        super(ResultWidget, self).__init__([("pack", self.status), self.description])
+    def __init__(self, init_status, result_map):
+        self.status = ResultStatusWidgetWrapper(init_status, result_map)
+        self.description = ResultDescriptionWidget()
+        super(ResultWidget, self).__init__(
+            [("pack", self.status), self.description])
 
-    def update(self):
-        self.status.update()
-        self.description.update()
+    def update(self, status, description):
+        self.status.update(status)
+        self.description.update(description)
         self._invalidate()
 
 
