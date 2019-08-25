@@ -72,7 +72,9 @@ class DropDown(urwid.Frame):
         # Signal 'close' and return selection to calling widget
         elif key in ('enter', 'tab'):
             self.set_focus('body')  # Return first if no selection
-            self.selection = self.walker.get_selected_message()
+            self.selection = self.editor.edit_text
+            if self.has_match(self.selection):
+                self.selection = self.walker.get_selected_message()
             self.set_focus('header')
             self._emit('close')
 
