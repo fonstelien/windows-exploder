@@ -43,6 +43,77 @@ class TextUserInterface(urwid.Frame):
             header=header, body=self.presentation, footer=self.session,
             focus_part="header")
 
+    def keypress_prompt(self, key):
+        if key == 'enter':
+            self.cmd_history.add(self.resultobj)
+            self.parent_directory.update()
+            self.prompt.update()
+            self.result.update(self.resultobj.status,
+                               self.resultobj.description)
+            self.presentation.update(self.resultobj.presentation)
+
+        elif key == 'esc':
+            self.prompt.update()
+
+        elif key == 'down' and self.presentation.selectable():
+            self.set_focus('body')
+
+        elif key == 'up':
+            self.footer = self.cmd_history
+            self.set_focus('footer')
+
+    def keypress_cmd_history(self, key):
+        if key in ('up', 'down', 'enter', 'backspace') or len(key) == 1:
+            self.parent_directory.update(
+                self.history_resultobj.parent_exec_wd)
+            self.prompt.update(self.history_resultobj.mode_id,
+                               self.history_resultobj.base_exec_wd,
+                               self.history_resultobj.command)
+            self.result.update(self.history_resultobj.status,
+                               self.history_resultobj.description)
+            self.presentation.update(self.history_resultobj.presentation,
+                                     force=True)
+
+        # Re-enter history item by inheriting mode_id, cwd, edit_text
+        if key == 'enter':
+            exec_wd = self.history_resultobj.exec_wd
+            cmd = f"cd '{exec_wd}'"
+            mode_id = self.history_resultobj.mode_id
+            presentation = self.resultobj.presentation
+            try:
+                os.chdir(exec_wd)
+                self.prompt.update(mode_id=mode_id,
+                                   edit_text=self.history_resultobj.command)
+                self.resultobj.set_result(mode_id, cmd, 'success',
+                                          exec_wd=exec_wd)
+            except FileNotFoundError:
+                self.prompt.update(mode_id=self.resultobj.mode_id)
+                self.resultobj.set_result(
+                    mode_id, cmd, 'failure',
+                    description=f"No such file or directory: '{exec_wd}'")
+
+            self.cmd_history.add(self.resultobj)
+            self.parent_directory.update()
+            self.result.update(self.resultobj.status,
+                               self.resultobj.description)
+            self.presentation.update(presentation)
+
+        # Excape from history mode
+        # 'tab' will inherit the history item's edit_text
+        elif key in ('esc', 'tab'):
+            edit_text = ""
+            if key == 'tab':
+                edit_text = self.history_resultobj.command
+            self.parent_directory.update(self.resultobj.parent_exec_wd)
+            self.prompt.update(edit_text=edit_text)
+            self.result.update(self.resultobj.status,
+                               self.resultobj.description)
+            self.presentation.update(self.resultobj.presentation)
+
+        if key in ('esc', 'enter', 'tab'):
+            self.footer = self.session
+            self.set_focus('header')
+
     def keypress(self, size, key):
         super(TextUserInterface, self).keypress(size, key)
 
@@ -67,77 +138,11 @@ class TextUserInterface(urwid.Frame):
 
         # Focus is on prompt
         if self.get_focus() == 'header':
-            if key == 'enter':
-                self.cmd_history.add(self.resultobj)
-                self.parent_directory.update()
-                self.prompt.update()
-                self.result.update(self.resultobj.status,
-                                   self.resultobj.description)
-                self.presentation.update(self.resultobj.presentation)
-
-            elif key == 'esc':
-                self.prompt.update()
-
-            elif key == 'down' and self.presentation.selectable():
-                self.set_focus('body')
-
-            elif key == 'up':
-                self.footer = self.cmd_history
-                self.set_focus('footer')
+            self.keypress_prompt(key)
 
         # Focus is on cmd_history
         if self.get_focus() == 'footer':
-            if key in ('up', 'down', 'enter', 'backspace') or len(key) == 1:
-                self.parent_directory.update(
-                    self.history_resultobj.parent_exec_wd)
-                self.prompt.update(self.history_resultobj.mode_id,
-                                   self.history_resultobj.base_exec_wd,
-                                   self.history_resultobj.command)
-                self.result.update(self.history_resultobj.status,
-                                   self.history_resultobj.description)
-                self.presentation.update(self.history_resultobj.presentation,
-                                         force=True)
-
-            # Re-enter history item by inheriting mode_id, cwd, edit_text
-            if key == 'enter':
-                exec_wd = self.history_resultobj.exec_wd
-                cmd = f"cd '{exec_wd}'"
-                mode_id = self.history_resultobj.mode_id
-                presentation = self.resultobj.presentation
-                try:
-                    os.chdir(exec_wd)
-                    self.prompt.update(
-                        mode_id=mode_id,
-                        edit_text=self.history_resultobj.command)
-                    self.resultobj.set_result(mode_id, cmd, 'success',
-                                              exec_wd=exec_wd)
-                except FileNotFoundError:
-                    self.prompt.update(mode_id=self.resultobj.mode_id)
-                    self.resultobj.set_result(
-                        mode_id, cmd, 'failure',
-                        description=f"No such file or directory: '{exec_wd}'")
-
-                self.cmd_history.add(self.resultobj)
-                self.parent_directory.update()
-                self.result.update(self.resultobj.status,
-                                   self.resultobj.description)
-                self.presentation.update(presentation)
-
-            # Excape from history mode
-            # 'tab' will inherit the history item's edit_text
-            elif key in ('esc', 'tab'):
-                edit_text = ""
-                if key == 'tab':
-                    edit_text = self.history_resultobj.command
-                self.parent_directory.update(self.resultobj.parent_exec_wd)
-                self.prompt.update(edit_text=edit_text)
-                self.result.update(self.resultobj.status,
-                                   self.resultobj.description)
-                self.presentation.update(self.resultobj.presentation)
-
-            if key in ('esc', 'enter', 'tab'):
-                self.footer = self.session
-                self.set_focus('header')
+            self.keypress_cmd_history(key)
 
         return key
 
