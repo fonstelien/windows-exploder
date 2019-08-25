@@ -25,7 +25,9 @@ class PromptEditor(editor.Editor):
         mode_map = ('mode', f" ({self.mode_id}) ")
         return [directory_map, mode_map]
 
-    def update(self, directory, edit_text):
+    def update(self, directory=None, edit_text=""):
+        if directory is None:
+            directory = os.path.basename(os.getcwd())
         self.set_caption(self._get_caption(directory))
         self.set_edit_text("")
         self.insert_text(edit_text)
@@ -184,10 +186,11 @@ class PromptEditor(editor.Editor):
         if path == '':
             path = os.path.expanduser('~')
         try:
+            cwd = os.getcwd()
             os.chdir(path)
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success',
-                presentation=self.get_standard_presentation())
+                presentation=self.get_standard_presentation(), exec_wd=cwd)
         except FileNotFoundError:
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure',
@@ -269,7 +272,12 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         self.editors[mode_id] = editor
         return editor
 
-    def update(self, directory, edit_text):
+    def update(self, mode_id=None, directory=None, edit_text=""):
+        if mode_id:
+            if mode_id in self.editors.keys():
+                self.original_widget = self.editors[mode_id]
+            else:
+                self.original_widget = self._init_mode(mode_id)
         self.original_widget.update(directory, edit_text)
 
     def reset_widget(self):
@@ -389,27 +397,26 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         """Set auto complete content"""
 
         def list_directory_contents(path):
-            if not os.path.isdir(path):
+            dirname = os.path.dirname(path)
+            if not os.path.isdir(dirname):
                 return list()
-            _, dirs, files = next(os.walk(path))
+            _, dirs, files = next(os.walk(dirname))
             dirs = [d+'/' for d in dirs]
+
             return dirs + files
 
         editor = self.original_widget
-        keyword = editor.edit_text
-        if keyword != '':
-            keyword = keyword[:editor.edit_pos]
+        text = editor.edit_text[:editor.edit_pos]
         content_list = list()
 
-        if re.match('(mode ).*', keyword) or \
-           re.match('(:)', keyword):
+        if re.match(r'mode\s+', text) or text == ':':
             content_list = self.modes.keys()
+        elif os.path.isdir(os.path.dirname(text)):
+            content_list = list_directory_contents(text)
 
         # DefaultMode active
         elif editor.mode_id == DefaultMode.mode_id:
-            path = os.path.join(os.getcwd(), keyword)
-            dirname, basename = os.path.split(path)
-            content_list = list_directory_contents(dirname)
+            content_list = list_directory_contents(text)
 
         self.pop_up.set_content(content_list)
         self.overlay_width = self.pop_up.max_width

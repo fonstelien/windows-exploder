@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 
 import urwid
-
 from palette import palette
 import resultobject
 import infoline
@@ -34,7 +33,7 @@ class TextUserInterface(urwid.Frame):
         self.cmd_history.add(self.resultobj)
 
         # Setting initial content
-        self.parent_directory.update(self.resultobj.parent_directory)
+        self.parent_directory.update()
         self.result.update(self.resultobj.status,
                            self.resultobj.description)
         self.presentation.update(self.resultobj.presentation)
@@ -69,14 +68,14 @@ class TextUserInterface(urwid.Frame):
         if self.get_focus() == 'header':
             if key == 'enter':
                 self.cmd_history.add(self.resultobj)
-                self.parent_directory.update(self.resultobj.parent_directory)
-                self.prompt.update(self.resultobj.directory, "")
+                self.parent_directory.update()
+                self.prompt.update(None, "")
                 self.result.update(self.resultobj.status,
                                    self.resultobj.description)
                 self.presentation.update(self.resultobj.presentation)
 
             elif key == 'esc':
-                self.prompt.update(self.resultobj.directory, "")
+                self.prompt.update(None, "")
 
             elif key == 'down' and self.presentation.selectable():
                 self.set_focus('body')
@@ -89,8 +88,9 @@ class TextUserInterface(urwid.Frame):
         if self.get_focus() == 'footer':
             if key in ('up', 'down', 'enter', 'backspace') or len(key) == 1:
                 self.parent_directory.update(
-                    self.history_resultobj.parent_directory)
-                self.prompt.update(self.history_resultobj.directory,
+                    self.history_resultobj.parent_exec_wd)
+                self.prompt.update(self.history_resultobj.mode_id,
+                                   self.history_resultobj.base_exec_wd,
                                    self.history_resultobj.command)
                 self.result.update(self.history_resultobj.status,
                                    self.history_resultobj.description)
@@ -101,8 +101,8 @@ class TextUserInterface(urwid.Frame):
                 edit_text = ""
                 if key == 'tab':
                     edit_text = self.history_resultobj.command
-                self.parent_directory.update(self.resultobj.parent_directory)
-                self.prompt.update(self.resultobj.directory, edit_text)
+                self.parent_directory.update(self.resultobj.parent_exec_wd)
+                self.prompt.update(edit_text=edit_text)
                 self.result.update(self.resultobj.status,
                                    self.resultobj.description)
                 self.presentation.update(self.resultobj.presentation)

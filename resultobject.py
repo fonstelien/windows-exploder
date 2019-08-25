@@ -17,22 +17,22 @@ class ResultObject(object):
         self.cwd = ''
 
     @property
-    def parent_directory(self):
-        return os.path.dirname(self.cwd)
+    def parent_exec_wd(self):
+        return os.path.dirname(self.exec_wd)
 
     @property
-    def directory(self):
-        return os.path.basename(self.cwd)
+    def base_exec_wd(self):
+        return os.path.basename(self.exec_wd)
 
     def set_result(self, mode_id, command, status, description='',
-                   presentation='', cwd=''):
+                   presentation='', exec_wd=''):
         assert status in self.status_map.keys()
         self.mode_id = mode_id
         self.command = command
         self.status = status
         self.description = description.strip('\n')
         self.presentation = presentation.strip('\n')
-        self.cwd = os.getcwd() if cwd == '' else cwd
+        self.exec_wd = os.getcwd() if exec_wd == '' else exec_wd
 
     def copy_state(self, other):
         if not other:
@@ -42,4 +42,4 @@ class ResultObject(object):
         self.command = other.command
         self.description = other.description
         self.presentation = other.presentation
-        self.cwd = other.cwd
+        self.exec_wd = other.exec_wd

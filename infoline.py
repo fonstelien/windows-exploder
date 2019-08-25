@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import os
 import urwid
 
 
@@ -44,7 +45,9 @@ class InfoLine(urwid.AttrMap):
 
 
 class ParentDirectoryWidget(InfoLine):
-    def update(self, parent_directory=""):
+    def update(self, parent_directory=None):
+        if parent_directory is None:
+            parent_directory = os.path.dirname(os.getcwd())
         self.full_text = parent_directory + "/"
         self.full_text_length = len(self.full_text)
         self._invalidate()
