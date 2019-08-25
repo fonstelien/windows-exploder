@@ -348,7 +348,7 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
 
         edit_text = self.original_widget.edit_text
         edit_pos = self.original_widget.edit_pos
-        search_str = re.match(r'(?:.*\W)?(\w*\Z)',
+        search_str = re.match(r'(?:.*\W)?(\w*\Z)',  # Last word
                               edit_text[:edit_pos]).group(1)
         left_pos = edit_pos - len(search_str)
 
@@ -411,11 +411,14 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
 
         if re.match(r'mode\s+', text) or text == ':':
             content_list = self.modes.keys()
-        elif os.path.isdir(os.path.dirname(text)):
-            content_list = list_directory_contents(text)
+        elif re.match(r'(?:.*\s+)(\.+/.*)', text, flags=re.UNICODE):
+            match = re.match(r'(?:.*\s+)(\.+/.*)', text, flags=re.UNICODE)
+            directory = match.group(1)
+            content_list = list_directory_contents(directory)
 
         # DefaultMode active
         elif editor.mode_id == DefaultMode.mode_id:
+            text = './' + text
             content_list = list_directory_contents(text)
 
         self.pop_up.set_content(content_list)
