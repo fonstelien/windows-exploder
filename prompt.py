@@ -356,8 +356,8 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         if not (force or self.pop_up.has_match(search_str)):
             return
 
-        # Set auto_complete.edit_text and pop_up_parameters
-        self.pop_up.set_edit_text(search_str)
+        # Set up the pop_up
+        self.pop_up.search(search_str)
         left, top = self.get_cursor_coords(self.max_size)
         left -= len(search_str)
         overlay_width = max(self.overlay_width, self.min_overlay_width)

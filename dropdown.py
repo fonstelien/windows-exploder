@@ -6,6 +6,10 @@ import walker
 
 
 class DropDown(urwid.Frame):
+    """A pop up widget for auto completing user input. The auto complete options
+    are set with the set_content() method, content is filtered with the
+    search() method, and selections are made with 'enter' or 'tab'."""
+
     signals = ['close', 'render']
 
     def __init__(self):
@@ -21,17 +25,21 @@ class DropDown(urwid.Frame):
         self._selectable = False
 
     def set_content(self, content_list):
+        """Sets the pop up content_list. The max_width property is also
+        set, and selectable() returns True if content_list is non-empty."""
         self.walker.set_content(content_list)
         self._selectable = self.walker.selectable()
         if self._selectable:
             # +1 for the cursor
             self.max_width = max(map(len, content_list)) + 1
+        else:
+            self.max_width = 1
 
-    def set_edit_text(self, edit_text):
+    def search(self, edit_text):
+        """Set edit_text in the pop up editor. Calls Walker.filter_content()
+        with edit_text as argument."""
         self.editor.edit_text = edit_text
         self.editor.edit_pos = len(edit_text)
-        if edit_text == '':
-            return
         self.walker.filter_content(edit_text,
                                    attr_marked='dropdown_marked',
                                    attr_plain='dropdown_plain')
