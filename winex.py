@@ -43,6 +43,9 @@ class TextUserInterface(urwid.Frame):
             header=header, body=self.presentation, footer=self.session,
             focus_part="header")
 
+        urwid.connect_signal(self.prompt, 'keypress',
+                             lambda x, size, key: self.keypress(size, key))
+
     def keypress_prompt(self, key):
         if key == 'enter':
             self.cmd_history.add(self.resultobj)

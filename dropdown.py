@@ -53,7 +53,7 @@ class DropDown(urwid.Frame):
 
     @property
     def curr_height(self):
-        """Total number of rows in the pop up,"""
+        """Total number of rows in the pop up."""
         return self.walker.length() + 1  # Add 1 row for the edit line
 
     def keypress(self, size, key):
@@ -70,7 +70,7 @@ class DropDown(urwid.Frame):
             # Signal 'close' and return edit_text to calling widget
             if not self.has_match(self.editor.edit_text):
                 self.selection = self.editor.edit_text
-                self._emit('close')
+                self._emit('close', key)
                 return key
 
             self._emit('render')
@@ -89,10 +89,10 @@ class DropDown(urwid.Frame):
             if self.walker.length() > 0:  # Selection possible?
                 self.selection = self.walker.get_selected_message()
             self.set_focus('header')
-            self._emit('close')
+            self._emit('close', key)
 
         elif key == 'esc':
             self.selection = self.editor.edit_text
-            self._emit('close')
+            self._emit('close', key)
 
         return None  # Do not return the key

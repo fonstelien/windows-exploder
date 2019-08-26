@@ -208,7 +208,6 @@ class DefaultMode(PromptEditor):
         super(DefaultMode, self).keypress(size, key)
         if key == 'enter':
             self._evaluate()
-
         return key
 
     def _evaluate(self):
@@ -229,7 +228,6 @@ class BashMode(PromptEditor):
         super(BashMode, self).keypress(size, key)
         if key == 'enter':
             self._evaluate()
-
         return key
 
     def _evaluate(self):
@@ -240,13 +238,14 @@ class BashMode(PromptEditor):
 
 
 class PromptWidgetHandler(urwid.PopUpLauncher):
+    signals = ['keypress']
     modes = {DefaultMode.mode_id: DefaultMode,
              BashMode.mode_id: BashMode}
 
     def __init__(self, resultobj):
         self.pop_up = dropdown.DropDown()
         urwid.connect_signal(
-            self.pop_up, 'close', lambda x: self.close_pop_up())
+            self.pop_up, 'close', lambda x, key: self.close_pop_up(key))
         urwid.connect_signal(
             self.pop_up, 'render', lambda x: self._invalidate())
 
@@ -374,11 +373,15 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
 
         super(PromptWidgetHandler, self).open_pop_up()
 
-    def close_pop_up(self):
+    def close_pop_up(self, key):
         self.original_widget.edit_text, self.original_widget.edit_pos = \
             self.editor_status
         self.original_widget.insert_text(self.pop_up.selection)
-        return super(PromptWidgetHandler, self).close_pop_up()
+        super(PromptWidgetHandler, self).close_pop_up()
+
+        if key == 'enter':
+            size = (0, 0)
+            self._emit('keypress', size, key)
 
     def create_pop_up(self):
         return self.pop_up
