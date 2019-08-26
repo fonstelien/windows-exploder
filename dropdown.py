@@ -30,12 +30,15 @@ class DropDown(urwid.Frame):
     def set_edit_text(self, edit_text):
         self.editor.edit_text = edit_text
         self.editor.edit_pos = len(edit_text)
-        if edit_text != '':
-            self.walker.filter_content(edit_text,
-                                       attr_marked='dropdown_marked',
-                                       attr_plain='dropdown_plain')
+        if edit_text == '':
+            return
+        self.walker.filter_content(edit_text,
+                                   attr_marked='dropdown_marked',
+                                   attr_plain='dropdown_plain')
 
     def has_match(self, search_str):
+        """Does 'search_str' have a match in the current options list? The empty
+        string returns False"""
         if search_str == '':
             return False
         return self.walker.has_match(search_str)
@@ -46,6 +49,8 @@ class DropDown(urwid.Frame):
         return self.walker.length() + 1  # Add 1 row for the edit line
 
     def keypress(self, size, key):
+        """Implementation of the keypress() method. The pop up will not return
+        key to overlaying widget"""
         # This lets the user still modify the edit_text when focus is on 'body'
         if len(key) == 1 or key in self.editor._deleters:
             self.set_focus('header')
@@ -73,7 +78,7 @@ class DropDown(urwid.Frame):
         elif key in ('enter', 'tab'):
             self.set_focus('body')  # Return first if no selection
             self.selection = self.editor.edit_text
-            if self.has_match(self.selection):
+            if self.walker.length() > 0:  # Selection possible?
                 self.selection = self.walker.get_selected_message()
             self.set_focus('header')
             self._emit('close')
