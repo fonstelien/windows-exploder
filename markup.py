@@ -13,8 +13,8 @@ class ColorMapper(object):
     filtpattern = re.compile(
         r'(?:\[)((?:\d{1,3};)*(?:\d{1,3}))(?:m(?:\[K)?)', flags=re.UNICODE)
 
-    # Mapping for str.replace of 'alternative' bash color code for 'default'
-    replace_default = ('[m[K', '[0m')
+    # Mapping for str.replace of 'alternative' bash color codes for 'default'
+    replace_alt1 = ('[m[K', '[0m')
 
     # Foreground bash to urwid color mapping
     foreground_codes = {'0': 'default',
@@ -74,7 +74,7 @@ class ColorMapper(object):
         if not self.fullpattern.search(string):
             return string
 
-        string = string.replace(*self.replace_default)
+        string = string.replace(*self.replace_alt1)
         markup = list()
         attr_name = ''
 
@@ -114,6 +114,7 @@ class ColorMapper(object):
 
 
 class DynColorEdit(urwid.Edit):
+    """For testing"""
     def __init__(self, markup, *args, **kwargs):
         self.markup = markup
         super(DynColorEdit, self).__init__(*args, **kwargs)
