@@ -73,6 +73,12 @@ class PromptEditor(editor.Editor):
             self.change_directory(args)
             return True
 
+        # Jump to parent directory
+        if set(self.edit_text.strip()) == set('u'):  # edit_text is all 'u's
+            path = '../' * len(self.edit_text.strip())
+            self.change_directory(path)
+            return True
+
         # Run bash command
         if op == 'sh':
             self.run_bash_command(args)
@@ -402,27 +408,32 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         def list_directory_contents(path):
             dirname = os.path.dirname(path)
             if not os.path.isdir(dirname):
-                return list()
+                dirname = os.path.dirname('./'+path)
+                if not os.path.isdir(dirname):
+                    return list()
             _, dirs, files = next(os.walk(dirname))
             dirs = [d+'/' for d in dirs]
-
             return dirs + files
 
         editor = self.original_widget
-        text = editor.edit_text[:editor.edit_pos]
+        cmd = editor.edit_text[:editor.edit_pos]
         content_list = list()
 
-        if re.match(r'mode\s+', text) or text == ':':
+        # Any mode active
+        match = re.match(r'(?:\s*)(\w+)(?:\s+)(.*)', cmd)  # operation, args
+        if match:
+            op, args = match.groups()
+            if op in ('cd', 'cp', 'mv', 'rm', 'cat'):
+                path = './' + args
+                content_list = list_directory_contents(path)
+            elif op == 'mode':
+                content_list = self.modes.keys()
+        elif cmd == ':':
             content_list = self.modes.keys()
-        elif re.match(r'(?:.*\s+)(\.+/.*)', text, flags=re.UNICODE):
-            match = re.match(r'(?:.*\s+)(\.+/.*)', text, flags=re.UNICODE)
-            directory = match.group(1)
-            content_list = list_directory_contents(directory)
 
         # DefaultMode active
         elif editor.mode_id == DefaultMode.mode_id:
-            text = './' + text
-            content_list = list_directory_contents(text)
+            content_list = list_directory_contents(cmd)
 
         self.pop_up.set_content(content_list)
         self.overlay_width = self.pop_up.max_width
