@@ -12,7 +12,7 @@ import dropdown
 class PromptEditor(editor.Editor):
     mode_id = '---'
     eval_pattern = re.compile(
-        r'(?:\s*)(:|\w+)(?:\s*)(.*)', flags=re.UNICODE)
+        r'(?:\s*)(:|\w+)(?:\s*)(.*)', flags=re.UNICODE)  # op, args
 
     def __init__(self, resultobj, directory, edit_text):
         self.resultobj = resultobj
@@ -37,10 +37,11 @@ class PromptEditor(editor.Editor):
         self.change_mode = ''
 
     def get_standard_presentation(self):
-        subproc = subprocess.run(
+        proc = subprocess.run(
             'ls -AhlgF --group-directories-first --color=always',
-            shell=True, capture_output=True, encoding='UTF-8')
-        return subproc.stdout
+            shell=True, universal_newlines=True,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+        return proc.stdout
 
     def _evaluate(self):
         match = self.eval_pattern.match(self.edit_text)
@@ -105,7 +106,7 @@ class PromptEditor(editor.Editor):
             if 'la' in match.groups():
                 return 'ls -Agp --group-directories-first'
             if 'l' in match.groups():
-                return 'ls -Fgp --group-directories-first'
+                return 'ls -Fp --group-directories-first'
             if 't' in match.groups():
                 return 'tree --dirsfirst -FaL 2'
             if 'g' in match.groups():
@@ -145,26 +146,28 @@ class PromptEditor(editor.Editor):
             cmd = re.sub(fr'{without_pipe}|{with_pipe}',
                          add_colors, cmd)
 
-        subproc = subprocess.run(
-            cmd, shell=True, capture_output=True, encoding='UTF-8')
-        if subproc.returncode == 0:
+        proc = subprocess.run(
+            cmd, shell=True, universal_newlines=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        if proc.returncode == 0:
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success',
-                presentation=subproc.stdout)
+                presentation=proc.stdout)
         else:
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure',
-                description=subproc.stderr)
+                description=proc.stderr)
 
-    def open_file(self, filename):
+    def open_file(self, args):
         """Open file 'filename' in default application"""
-        args = ['xdg-open', filename]
-        pipe = subprocess.PIPE
-        subproc = subprocess.Popen(
-            args, encoding='UTF-8', stdout=pipe, stderr=pipe)
+        cmd = f'xdg-open {args}'
+        proc = subprocess.Popen(
+            cmd, shell=True, universal_newlines=True,
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         try:
-            outs, errs = subproc.communicate(timeout=1)
+            outs, errs = proc.communicate(timeout=1)
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure', description=errs)
 
@@ -172,13 +175,13 @@ class PromptEditor(editor.Editor):
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'success')
 
-    def start_application(self, app_name):
+    def start_application(self, cmd):
         """Starts the program 'app_name'"""
-        pipe = subprocess.PIPE
         try:
-            subproc = subprocess.Popen(
-                app_name, encoding='UTF-8', stdout=pipe, stderr=pipe)
-            _, err = subproc.communicate(timeout=1)
+            proc = subprocess.Popen(
+                cmd, shell=True, universal_newlines=True,
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            _, err = proc.communicate(timeout=2)
             self.resultobj.set_result(
                 self.mode_id, self.edit_text, 'failure', description=err)
         except subprocess.TimeoutExpired:
@@ -424,7 +427,8 @@ class PromptWidgetHandler(urwid.PopUpLauncher):
         if match:
             op, args = match.groups()
             if op in ('cd', 'cp', 'mv', 'rm', 'cat'):
-                path = './' + args
+                match = re.match(r'(?:.*\s+)(\.+/.*)', cmd)  # [op args] path
+                path = match.group(1) if match else args
                 content_list = list_directory_contents(path)
             elif op == 'mode':
                 content_list = self.modes.keys()
