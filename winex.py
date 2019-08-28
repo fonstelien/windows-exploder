@@ -108,7 +108,8 @@ class TextUserInterface(urwid.Frame):
             if key == 'tab':
                 edit_text = self.history_resultobj.command
             self.parent_directory.update(self.resultobj.parent_exec_wd)
-            self.prompt.update(edit_text=edit_text)
+            self.prompt.update(mode_id=self.resultobj.mode_id,
+                               edit_text=edit_text)
             self.result.update(self.resultobj.status,
                                self.resultobj.description)
             self.presentation.update(self.resultobj.presentation)
